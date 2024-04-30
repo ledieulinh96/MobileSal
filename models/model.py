@@ -7,6 +7,15 @@ import math
 
 from models.MobileNetV2 import mobilenet_v2
 from torch.nn import Parameter
+import common
+import torch
+import torchvision.transforms as transforms
+import timm
+from PIL import Image
+import matplotlib.pyplot as plt
+from transformers import ViTModel
+import torchvision.models as models
+
 
 class FrozenBatchNorm2d(nn.Module):
     def __init__(self, n):
@@ -173,6 +182,7 @@ class InvertedResidual(nn.Module):
             return self.conv(x)
 
 class MobileSal(nn.Module):
+    
     def __init__(self, pretrained=True, use_carafe=True,
                  enc_channels=[16, 24, 32, 96, 320],
                  dec_channels=[16, 24, 32, 96, 320]):
@@ -180,7 +190,8 @@ class MobileSal(nn.Module):
         self.backbone = mobilenet_v2(pretrained)
         self.depthnet = DepthNet()
 
-        self.depth_fuse = DepthFuseNet(inchannels=320)
+        # self.depth_fuse = DepthFuseNet(inchannels=320)
+        self.depth_fuse = CrissCrossAttention(320)
 
         self.idr = IDR(enc_channels)
 
@@ -199,11 +210,16 @@ class MobileSal(nn.Module):
 
         # generate backbone features
         conv1, conv2, conv3, conv4, conv5 = self.backbone(input)
+        #1: 10,16,160,160
+        #2: 10,24,80,80
+        #3: 10,32,40,40
+        #4: 10,96,20,20
+        #5: 10,320,10,10
         
         # RGB-D fuse & implicit depth restoration
         if depth is not None:
             depth_features = self.depthnet(depth)
-            conv5 = self.depth_fuse(conv5, depth_features[-1])
+            conv5 = self.depth_fuse(conv5, depth_features[-1]) #10,320,10,10
             if test:
                 depth_pred = None
             else:
@@ -282,6 +298,47 @@ class DepthFuseNet(nn.Module):
         x_d1 = self.d_linear(x.mean(dim=2).mean(dim=2)).unsqueeze(dim=2).unsqueeze(dim=3)
         x_f1 = self.d_conv2(torch.sigmoid(x_d1) * x_f * x_d)
         return x_f1
+
+        #5: 10,320,10,10
+class CrissCrossAttention(nn.Module):
+    """ Criss-Cross Attention Module"""
+    def __init__(self, in_dim):
+        super(CrissCrossAttention, self).__init__()
+        self.query_conv = nn.Conv2d(in_channels=in_dim, out_channels=in_dim//8, kernel_size=1)
+        self.key_conv = nn.Conv2d(in_channels=in_dim, out_channels=in_dim//8, kernel_size=1)
+        self.value_conv = nn.Conv2d(in_channels=in_dim, out_channels=in_dim, kernel_size=1)
+        self.softmax = nn.Softmax(dim=3)
+        self.gamma = nn.Parameter(torch.zeros(1))
+
+    def forward(self, x, x_d):
+        m_batchsize, _, height, width = x.size()
+
+        proj_query = self.query_conv(x)
+        proj_query_H = proj_query.permute(0, 3, 1, 2).contiguous().view(m_batchsize*width, -1, height).permute(0, 2, 1)
+        proj_query_W = proj_query.permute(0, 2, 1, 3).contiguous().view(m_batchsize*height, -1, width).permute(0, 2, 1)
+
+        proj_key = self.key_conv(x_d)
+        proj_key_H = proj_key.permute(0, 3, 1, 2).contiguous().view(m_batchsize*width, -1, height)
+        proj_key_W = proj_key.permute(0, 2, 1, 3).contiguous().view(m_batchsize*height, -1, width)
+
+        proj_value = self.value_conv(x_d)
+        proj_value_H = proj_value.permute(0, 3, 1, 2).contiguous().view(m_batchsize*width, -1, height)
+        proj_value_W = proj_value.permute(0, 2, 1, 3).contiguous().view(m_batchsize*height, -1, width)
+
+        energy_H = torch.bmm(proj_query_H, proj_key_H).view(m_batchsize, width, height, height).permute(0, 2, 1, 3)
+        energy_W = torch.bmm(proj_query_W, proj_key_W).view(m_batchsize, height, width, width)
+        
+        concate = self.softmax(torch.cat([energy_H, energy_W], 3))
+        
+        att_H = concate[:, :, :, :height].permute(0, 2, 1, 3).contiguous().view(m_batchsize*width, height, height)
+        att_W = concate[:, :, :, height:height+width].contiguous().view(m_batchsize*height, width, width)
+
+        out_H = torch.bmm(proj_value_H, att_H.permute(0, 2, 1)).view(m_batchsize, width, -1, height).permute(0, 2, 3, 1)
+        out_W = torch.bmm(proj_value_W, att_W.permute(0, 2, 1)).view(m_batchsize, height, -1, width).permute(0, 2, 1, 3)
+
+        return self.gamma * (out_H + out_W) + x
+
+
 
 class IDR(nn.Module):
     def __init__(self, enc_channels, channels=256, size_idx=3):
