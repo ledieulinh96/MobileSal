@@ -1,3 +1,4 @@
+import datetime
 import sys
 sys.path.insert(0, '.')
 
@@ -18,6 +19,66 @@ from criteria import SSIM
 import os, shutil, time
 import numpy as np
 from argparse import ArgumentParser
+
+# Define the source file path
+source_path = os.path.abspath(__file__)
+current_file_name = os.path.basename(__file__)
+# Get the current date and time formatted as YYYYMMDD-HHMMSS
+timestamp = datetime.datetime.now().strftime('%Y%m%d-%H%M%S')
+
+# Define the destination file path, including the timestamp in the filename
+destination_dir = '/root/linhle/DL/MobileSal/MobileSal/snapshots/'
+destination_file = f'{timestamp}_{current_file_name}.py'
+destination_path = os.path.join(destination_dir, destination_file)
+
+# Ensure the destination directory exists, create if it doesn't
+os.makedirs(destination_dir, exist_ok=True)
+
+# Copy the file
+shutil.copy(source_path, destination_path)
+
+print(f"File copied from {source_path} to {destination_path}")
+
+import logging
+# Properly join paths
+current_dir = os.getcwd()
+log_file = 'test.log'
+destination_path = os.path.join(current_dir, "snapshots", log_file)
+
+# Configure logging
+logging.basicConfig(filename=destination_path, filemode='a', format='%(name)s - %(levelname)s - %(message)s', level=logging.INFO)
+
+class Logger(object):
+    def __init__(self, filename):
+        self.terminal = sys.stdout
+        self.log = open(filename, "a")
+
+    def write(self, message):
+        self.terminal.write(message)
+        if message != '\n':
+            self.log.write(message)
+
+    def flush(self):
+        self.terminal.flush()
+        self.log.flush()
+
+    def close(self):
+        self.log.close()
+
+# Redirect stdout to also log to file
+sys.stdout = Logger(destination_path)
+
+
+
+onGPU = False
+# Determine the best available device
+if torch.cuda.is_available():
+    device = torch.device('cuda')
+    onGPU = True
+elif torch.backends.mps.is_available():
+    device = torch.device('mps')  # For Apple Silicon Macs
+else:
+    device = torch.device('cpu')
 
 def build_ssim_loss(window_size=11):
     return SSIM(window_size=window_size)
@@ -68,10 +129,10 @@ def val(args, val_loader, model, criterion):
         start_time = time.time()
 
         if args.onGPU:
-            input = input.cuda()
-            target = target.cuda()
+            input = input.to(device)
+            target = target.to(device)
             if args.depth:
-                depth = depth.cuda()
+                depth = depth.to(device)
         input_var = torch.autograd.Variable(input)
         target_var = torch.autograd.Variable(target).float()
         if args.depth:
@@ -91,7 +152,7 @@ def val(args, val_loader, model, criterion):
         # compute the confusion matrix
         if args.onGPU and torch.cuda.device_count() > 1:
             output = gather(output, 0, dim=0)
-        salEvalVal.addBatch(output[:,0,:,:], target_var)
+        salEvalVal.addBatch(output[:,0,:,:], target_var) #
         if iter % 5 == 0:
             print('\r[%d/%d] loss: %.3f time: %.3f' % (iter, total_batches, loss.data.item(), time_taken), end='')
 
@@ -121,10 +182,10 @@ def train(args, train_loader, model, criterion, optimizer, epoch, max_batches, c
         lr = adjust_learning_rate(args, optimizer, epoch, iter + cur_iter, max_batches, lr_factor=lr_factor)
 
         if args.onGPU == True:
-            input = input.cuda()
-            target = target.cuda()
+            input = input.to(device)
+            target = target.to(device)
             if args.depth:
-                depth = depth.cuda()
+                depth = depth.to(device)
         
         input_var = torch.autograd.Variable(input)
         target_var = torch.autograd.Variable(target).float()
@@ -189,14 +250,19 @@ def trainValidateSegmentation(args):
         model = DataParallelModel(model)
 
     if args.onGPU:
-        model = model.cuda()
+        model = model.to(device)
 
     total_params = sum([np.prod(p.size()) for p in model.parameters()])
-    depthpred_params = sum([np.prod(p.size()) for p in model.idr.parameters()])
-    print('Total network parameters (excluding idr): ' + str(total_params - depthpred_params))
+    #depthpred_params = sum([np.prod(p.size()) for p in model.idr.parameters()])
+    #print('Total network parameters (excluding idr): ' + str(total_params - depthpred_params))
+    print('Total network parameters (include idr): ' + str(total_params))
 
     mean = [0.406, 0.456, 0.485]  # [103.53,116.28,123.675]
     std = [0.225, 0.224, 0.229] # [57.375,57.12,58.395]
+    
+    #mobile_vit
+    #mean = [0.485, 0.456, 0.406]  # [103.53,116.28,123.675]
+    #std = [0.229, 0.224, 0.225] # [57.375,57.12,58.395]
     
     # compose the data with transforms
     trainDataset_main = myTransforms.Compose([
@@ -294,33 +360,40 @@ def trainValidateSegmentation(args):
 
 
     criteria = DeepSupervisionLoss()
-    if args.onGPU and torch.cuda.device_count() > 1:
+    if args.onGPU and torch.cuda.is_available() and torch.cuda.device_count() > 1:
         criteria = DataParallelCriterion(criteria)
 
+
+
+ 
 
     for epoch in range(start_epoch, args.max_epochs):
 
         if args.ms:
             train(args, trainLoader_scale1, model, criteria, optimizer, epoch, max_batches, cur_iter)
             cur_iter += len(trainLoader)
-            torch.cuda.empty_cache()
+            if onGPU:
+                torch.cuda.empty_cache()
 
             train(args, trainLoader_scale2, model, criteria, optimizer, epoch, max_batches, cur_iter)
             cur_iter += len(trainLoader)
-            torch.cuda.empty_cache()
+            if onGPU:
+                torch.cuda.empty_cache()
         
         lossTr, F_beta_tr, MAE_tr, lr = \
             train(args, trainLoader, model, criteria, optimizer, epoch, max_batches, cur_iter)
         cur_iter += len(trainLoader)
 
-        torch.cuda.empty_cache()
+        if onGPU:
+            torch.cuda.empty_cache()
         
         # evaluate on validation set
         if epoch == 0:
             continue
         
         lossVal, F_beta_val, MAE_val = val(args, valLoader, model, criteria)
-        torch.cuda.empty_cache()
+        if onGPU:
+            torch.cuda.empty_cache()
         logger.write("\n%d\t\t%.4f\t\t%.4f" % (epoch, F_beta_val, MAE_val))
         logger.flush()
 
@@ -344,7 +417,8 @@ def trainValidateSegmentation(args):
         print("Epoch " + str(epoch) + ': Details')
         print("\nEpoch No. %d:\tTrain Loss = %.4f\tVal Loss = %.4f\t F_beta(tr) = %.4f\t F_beta(val) = %.4f" \
                 % (epoch, lossTr, lossVal, F_beta_tr, F_beta_val))
-        torch.cuda.empty_cache()
+        if onGPU:
+            torch.cuda.empty_cache()
     logger.close()
 
 if __name__ == '__main__':
@@ -361,7 +435,17 @@ if __name__ == '__main__':
     parser.add_argument('--savedir', default='./results', help='Directory to save the results')
     parser.add_argument('--resume', default=None, help='Use this checkpoint to continue training')
     parser.add_argument('--logFile', default='trainValLog.txt', help='File that stores the training and validation logs')
-    parser.add_argument('--onGPU', default=True, type=lambda x: (str(x).lower() == 'true'),
+
+    onGPU1 = True
+    if torch.cuda.is_available():
+        device = torch.device('cuda')
+    elif torch.backends.mps.is_available():
+        device = torch.device('mps')  # For Apple Silicon Macs
+    else:
+        device = torch.device('cpu')
+        onGPU1 = False
+
+    parser.add_argument('--onGPU', default=onGPU1, type=lambda x: (str(x).lower() == 'true'),
                         help='Run on CPU or GPU. If TRUE, then GPU.')
     parser.add_argument('--weight', default='', type=str, help='pretrained weight, can be a non-strict copy')
     parser.add_argument('--depth', type=int, default=1, help='use RGB-D data, default True')
@@ -374,3 +458,5 @@ if __name__ == '__main__':
     print(args)
 
     trainValidateSegmentation(args)
+# Remember to close the logger when done
+sys.stdout.close()

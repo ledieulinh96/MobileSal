@@ -1,3 +1,4 @@
+from transformers import ViTFeatureExtractor
 from torch import nn
 import torch
 try:
@@ -11,6 +12,10 @@ except ModuleNotFoundError:
 
 model_urls = {
     'mobilenet_v2': 'https://download.pytorch.org/models/mobilenet_v2-b0353104.pth',
+    'mobilenet_v3_large': 'https://download.pytorch.org/models/mobilenet_v3_large-8738ca79.pth',
+    'mobilenet_v3_small': 'https://download.pytorch.org/models/mobilenet_v3_small-047dcff4.pth',
+    'wide_resnet50_2': 'https://download.pytorch.org/models/wide_resnet50_2-95faca4d.pth',
+    
 }
 
 

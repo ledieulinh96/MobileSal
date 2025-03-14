@@ -3,6 +3,16 @@ import torch.nn.functional as F
 from math import exp
 import numpy as np
 
+# Determine the best available device
+if torch.cuda.is_available():
+    device = torch.device('cuda')
+elif torch.backends.mps.is_available():
+    device = torch.device('mps')  # For Apple Silicon Macs
+else:
+    device = torch.device('cpu')
+
+print(f"Using device: {device}")
+
 
 def gaussian(window_size, sigma):
     gauss = torch.Tensor([exp(-(x - window_size//2)**2/float(2*sigma**2)) for x in range(window_size)])
@@ -13,7 +23,7 @@ def create_window(window_size, channel=1):
     _1D_window = gaussian(window_size, 1.5).unsqueeze(1)
     _2D_window = _1D_window.mm(_1D_window.t()).float().unsqueeze(0).unsqueeze(0)
     window = _2D_window.expand(channel, 1, window_size, window_size).contiguous()
-    return window.cuda()
+    return window.to(device)
 
 
 def ssim(img1, img2, window_size=11, window=None, size_average=True, full=False, val_range=None):

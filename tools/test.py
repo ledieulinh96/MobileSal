@@ -1,3 +1,5 @@
+import datetime
+import shutil
 import sys
 sys.path.insert(0, '.')
 
@@ -14,9 +16,34 @@ from SalEval import SalEval
 from models import model as net
 import matplotlib.pyplot as plt
 from tqdm import tqdm
+import logging
+# Properly join paths
+current_dir = os.getcwd()
+log_file = 'test.log'
+destination_path = os.path.join(current_dir, "snapshots", log_file)
 
+# Configure logging
+logging.basicConfig(filename=destination_path, filemode='a', format='%(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 
-    
+class Logger(object):
+    def __init__(self, filename):
+        self.terminal = sys.stdout
+        self.log = open(filename, "a")
+
+    def write(self, message):
+        self.terminal.write(message)
+        if message != '\n':
+            self.log.write(message)
+
+    def flush(self):
+        self.terminal.flush()
+        self.log.flush()
+
+    def close(self):
+        self.log.close()
+
+# Redirect stdout to also log to file
+sys.stdout = Logger(destination_path)
 
 def get_mean_set(args):
     # for DUTS training dataset
@@ -145,3 +172,5 @@ if __name__ == '__main__':
     for data_list in data_lists:
         print("processing ", data_list)
         main(args, data_list)
+    # Remember to close the logger when done
+    sys.stdout.close()

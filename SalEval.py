@@ -4,18 +4,29 @@ import numpy as np
 # adapted from https://github.com/shelhamer/fcn.berkeleyvision.org/blob/master/score.py
 MAX_IMG_PER_BATCH = 256
 
+# Determine the best available device
+if torch.cuda.is_available():
+    device = torch.device('cuda')
+elif torch.backends.mps.is_available():
+    device = torch.device('mps')  # For Apple Silicon Macs
+else:
+    device = torch.device('cpu')
+
+print(f"Using device: {device}")
+
+
 class SalEval:
     def __init__(self, nthresh=255):
         self.nthresh = nthresh
-        self.thresh = torch.linspace(1./(nthresh + 1), 1. - 1./(nthresh + 1), nthresh).cuda()
-        self.EPSILON = np.finfo(np.float).eps
+        self.thresh = torch.linspace(1./(nthresh + 1), 1. - 1./(nthresh + 1), nthresh).to(device)
+        self.EPSILON = np.finfo(float).eps
 
-        self.gt_sum = torch.zeros((nthresh,)).cuda()
-        self.pred_sum = torch.zeros((nthresh,)).cuda()
+        self.gt_sum = torch.zeros((nthresh,)).to(device)
+        self.pred_sum = torch.zeros((nthresh,)).to(device)
         self.num_images = 0
         self.mae = 0
-        self.prec = torch.zeros(self.nthresh).cuda()
-        self.recall = torch.zeros(self.nthresh).cuda()
+        self.prec = torch.zeros(self.nthresh).to(device)
+        self.recall = torch.zeros(self.nthresh).to(device)
 
 
     def addBatch(self, predict, gth):
@@ -25,8 +36,8 @@ class SalEval:
         gth = gth.detach()
         gth.requires_grad = False
         predict.requires_grad = False
-        recall = torch.zeros(self.nthresh).cuda()
-        prec = torch.zeros(self.nthresh).cuda()
+        recall = torch.zeros(self.nthresh).to(device)
+        prec = torch.zeros(self.nthresh).to(device)
 
         mae = 0
         predict = predict.view(bs, -1)

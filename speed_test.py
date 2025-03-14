@@ -1,7 +1,9 @@
-from models.model import MobileSal
+import numpy as np
+from models.model_remove_idr import MobileSal
 import torch, os
 from time import time
 from tqdm import tqdm
+import logging
 
 try:
     from torch2trt import torch2trt, TRTModule
@@ -11,16 +13,54 @@ except ModuleNotFoundError:
     trt_installed = 0
 print("loaded all packages")
 
-model = MobileSal().cuda().eval()
+device = torch.device('cuda:4' if torch.cuda.is_available() else 'cpu')
+
+model = MobileSal().to(device).eval()
+current_dir = os.getcwd()
+
+log_file= f'speed.log'
+destination_path = os.path.join(current_dir,"snapshots", log_file)
+
+# Configure logging
+logging.basicConfig(filename=destination_path, filemode='a', format='%(name)s - %(levelname)s - %(message)s', level=logging.INFO)
+
+# If you still need to use print and want it logged:
+import sys
+
+class Logger(object):
+    def __init__(self, filename):
+        self.terminal = sys.stdout
+        self.log = open(filename, "a")
+
+    def write(self, message):
+        self.terminal.write(message)
+        if message != '\n':
+            self.log.write(message)
+
+    def flush(self):
+        self.terminal.flush()
+        self.log.flush()
+
+    def close(self):
+        self.log.close()
+sys.stdout = Logger(log_file)
+
+
 
 # We use multi-scale pretrained model as the model weights
-model.load_state_dict(torch.load("pretrained/mobilesal_ms.pth"))
+#model.load_state_dict(torch.load("pretrained/mobilesal_ms.pth"))
+model.load_state_dict(torch.load("pretrained/model_60.pth"))
+batch_size = 10
+x = torch.randn(batch_size,3,320,320).to(device)
+y = torch.randn(batch_size,1,320,320).to(device)
+total_params = sum([np.prod(p.size()) for p in model.parameters()])
+#depthpred_params = sum([np.prod(p.size()) for p in model.idr.parameters()])
+#print('Total network parameters (excluding idr): ' + str(total_params - depthpred_params))
+print('Total network parameters (including idr): ' + str(total_params))
 
-x = torch.randn(20,3,320,320).cuda()
-y = torch.randn(20,1,320,320).cuda()
 
 ######################################
-#### PyTorch Test [BatchSize 20] #####
+#### PyTorch Test [BatchSize 16] #####
 ######################################
 for i in tqdm(range(50)):
     # warm up
@@ -31,14 +71,14 @@ total_t = 0
 for i in tqdm(range(100)):
     start = time()
     p = model(x,y)
-    p = p + 1 # replace torch.cuda.synchronize()
+    p = p + 1 # replace torch.cuda.synchronize()``
     total_t += time() - start
 
-print("FPS", 100 / total_t * 20)
+print("FPS", 100 / total_t * batch_size)
 print("PyTorch batchsize=20 speed test completed, expected 450FPS for RTX 2080Ti!")
 
 torch.cuda.empty_cache()
-
+sys.stdout.close()
 if not trt_installed:
     exit()
 
@@ -48,7 +88,7 @@ if not trt_installed:
 x = torch.randn(1,3,320,320).cuda()
 y = torch.randn(1,1,320,320).cuda()
 
-save_path = "pretrained/mobilesal_temp.pth"
+save_path = "pretrained/model_60.pth"
 if os.path.exists(save_path):
     print('loading TensorRT model', save_path)
     model_trt = TRTModule()

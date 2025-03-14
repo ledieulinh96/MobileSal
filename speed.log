@@ -1,0 +1,59 @@
+FPS 204.94761882627984
+PyTorch batchsize=20 speed test completed, expected 450FPS for RTX 2080Ti!
+FPS 205.07698661112778
+PyTorch batchsize=20 speed test completed, expected 450FPS for RTX 2080Ti!
+FPS 204.14503882045915
+PyTorch batchsize=20 speed test completed, expected 450FPS for RTX 2080Ti!
+Total network parameters (excluding idr): 6544985
+Total network parameters (including idr): 10242394
+FPS 203.2557635917667
+PyTorch batchsize=20 speed test completed, expected 450FPS for RTX 2080Ti!
+Total network parameters (including idr): 4789866
+FPS 206.58422243626978
+PyTorch batchsize=20 speed test completed, expected 450FPS for RTX 2080Ti!
+Total network parameters (including idr): 3712944
+Total network parameters (including idr): 3712944
+Total network parameters (including idr): 3712944
+FPS 207.31816662565748
+PyTorch batchsize=20 speed test completed, expected 450FPS for RTX 2080Ti!
+Total network parameters (including idr): 3712944
+Total network parameters (including idr): 3712944
+FPS 210.71231324258318
+PyTorch batchsize=20 speed test completed, expected 450FPS for RTX 2080Ti!
+Total network parameters (including idr): 3712944
+Total network parameters (including idr): 3713920
+Total network parameters (including idr): 10242394
+FPS 203.5669748049223
+PyTorch batchsize=20 speed test completed, expected 450FPS for RTX 2080Ti!
+Total network parameters (excluding idr): 6544985
+Total network parameters (including idr): 10242394
+FPS 203.320065951832
+PyTorch batchsize=20 speed test completed, expected 450FPS for RTX 2080Ti!
+Total network parameters (excluding idr): 6544985
+Total network parameters (including idr): 10242394
+FPS 203.3081901686905
+PyTorch batchsize=20 speed test completed, expected 450FPS for RTX 2080Ti!
+Total network parameters (including idr): 3713920
+Total network parameters (including idr): 3713920
+FPS 216.1653024175105
+PyTorch batchsize=20 speed test completed, expected 450FPS for RTX 2080Ti!
+Total network parameters (including idr): 10242394
+FPS 203.2267434707204
+PyTorch batchsize=20 speed test completed, expected 450FPS for RTX 2080Ti!
+Total network parameters (including idr): 3713920
+FPS 216.18712445612442
+PyTorch batchsize=20 speed test completed, expected 450FPS for RTX 2080Ti!
+Total network parameters (including idr): 8652856
+Total network parameters (including idr): 8652856
+FPS 128.1932405125463
+PyTorch batchsize=20 speed test completed, expected 450FPS for RTX 2080Ti!
+Total network parameters (excluding idr): 4908343
+FPS 128.13378812948798
+PyTorch batchsize=20 speed test completed, expected 450FPS for RTX 2080Ti!
+Total network parameters (excluding idr): 6544985
+FPS 199.69337813999718
+PyTorch batchsize=20 speed test completed, expected 450FPS for RTX 2080Ti!
+Total network parameters (excluding idr): 4908343
+FPS 128.03759306893664
+PyTorch batchsize=20 speed test completed, expected 450FPS for RTX 2080Ti!
+Total network parameters (excluding idr): 4790506FPS 201.89866297800702PyTorch batchsize=20 speed test completed, expected 450FPS for RTX 2080Ti!Total network parameters (excluding idr): 4790506Total network parameters (excluding idr): 4790506Total network parameters (excluding idr): 4790506FPS 194.55765115335703PyTorch batchsize=20 speed test completed, expected 450FPS for RTX 2080Ti!Total network parameters (excluding idr): 42984311Total network parameters (excluding idr): 42984311Total network parameters (excluding idr): 42984311Total network parameters (excluding idr): 42984311Total network parameters (excluding idr): 42984311Total network parameters (excluding idr): 42984311Total network parameters (excluding idr): 42984311Total network parameters (excluding idr): 42984311FPS 36.73731313359663PyTorch batchsize=20 speed test completed, expected 450FPS for RTX 2080Ti!Total network parameters (excluding idr): 4927006FPS 184.87157943221342PyTorch batchsize=20 speed test completed, expected 450FPS for RTX 2080Ti!Total network parameters (including idr): 4789866FPS 190.46757103445253PyTorch batchsize=20 speed test completed, expected 450FPS for RTX 2080Ti!Total network parameters (including idr): 4789866FPS 205.22193750598458PyTorch batchsize=20 speed test completed, expected 450FPS for RTX 2080Ti!

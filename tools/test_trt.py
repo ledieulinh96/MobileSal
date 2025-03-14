@@ -14,7 +14,7 @@ from models import model as net
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 from torch2trt import torch2trt, TRTModule
-    
+
 
 def get_mean_set(args):
     # for DUTS training dataset
@@ -72,7 +72,6 @@ def validateModel(args, model, image_list, label_list, savedir):
         img_out = F.interpolate(img_out, size=image.shape[:2], mode='bilinear', align_corners=False)
 
         if args.save_depth:
-            if 
             depth_out = F.interpolate(depth_out, size=image.shape[:2], mode='bilinear', align_corners=False)
             depthMap_numpy = (depth_out * 255).data.cpu().numpy()[0, 0].astype(np.uint8)
             depthMapGT_numpy = ((depth_variable[0,0] *0.5 + 0.5) * 255).cpu().numpy().astype(np.uint8)
